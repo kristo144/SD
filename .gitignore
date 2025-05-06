@@ -1,0 +1,6 @@
+# PyCharm
+idea/
+
+# Logs y Cache
+PRAC1/PyRO/logs/
+PRAC1/PyRO/__pycache__/
