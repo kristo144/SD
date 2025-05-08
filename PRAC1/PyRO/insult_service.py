@@ -149,28 +149,7 @@ class InsultService(object):
 class InsultSubscriber(object):
     def __init__(self, name):
         self.name = name
-        self.received_insults = [
-            "cabeza hueca",
-            "torpe",
-            "payaso sin gracia",
-            "inútil crónico",
-            "memo",
-            "chapucero",
-            "incompetente",
-            "caradura",
-            "vago incorregible",
-            "cateto",
-            "clueless",
-            "code monkey",
-            "lazy bum",
-            "you fool",
-            "rookie mistake",
-            "bug lover",
-            "script kiddie",
-            "wannabe hacker",
-            "brain dead",
-            "sloppy coder"
-        ]
+        self.received_insults = []
 
     def notify(self, insult):
         print(f"[{self.name}] Recibido: {insult}")
