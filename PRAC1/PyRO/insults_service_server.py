@@ -1,5 +1,5 @@
 import Pyro4
-from insult_service import InsultService
+from insult_service_pyro import InsultService
 
 if __name__ == '__main__':
     # Creamos un daemon y nos conectamos al Name Server
