@@ -28,31 +28,32 @@ def main():
         print("3. Salir")
         option = input("Selecciona una opción: ")
 
-        if option == "1":
-            text = input("Escribe el texto a filtrar: ")
-            if insult_filter.filter_text(text):
-                print("Texto enviado para ser filtrado")
-            else:
-                print("Error al enviar el texto")
+        match option:
+            case "1":
+                text = input("Escribe el texto a filtrar: ")
+                if insult_filter.filter_text(text):
+                    print("Texto enviado para ser filtrado")
+                else:
+                    print("Error al enviar el texto")
 
-            # Esperar un momento para que se procese el texto
-            time.sleep(0.5)
+                # Esperar un momento para que se procese el texto
+                time.sleep(0.5)
 
-        elif option == "2":
-            filtered_texts = insult_filter.get_filtered_texts()
-            if filtered_texts:
-                print("Textos filtrados:")
-                for i, text in enumerate(filtered_texts, 1):
-                    print(f"{i}. {text}")
-            else:
-                print("No hay textos filtrados")
+            case "2":
+                filtered_texts = insult_filter.get_filtered_texts()
+                if filtered_texts:
+                    print("Textos filtrados:")
+                    for i, text in enumerate(filtered_texts, 1):
+                        print(f"{i}. {text}")
+                else:
+                    print("No hay textos filtrados")
+    
+            case "3":
+                print("Saliendo...")
+                break
 
-        elif option == "3":
-            print("Saliendo...")
-            break
-
-        else:
-            print("Opción no válida")
+            case _:
+                print("Opción no válida")
 
 
 if __name__ == "__main__":
