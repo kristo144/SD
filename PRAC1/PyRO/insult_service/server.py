@@ -2,7 +2,7 @@ import Pyro4
 import threading
 import time
 import random
-from PRAC1.PyRO.insult_service.model import InsultService
+from model import InsultService
 
 """
     Implementación del servicio de insultos usando Pyro4 para su exposición remota.

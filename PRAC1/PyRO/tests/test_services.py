@@ -9,8 +9,8 @@ import Pyro4
 # Añadir el directorio raíz al path para importaciones relativas
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from insult_service.model import InsultService
-from insult_filter.model import InsultFilter
+from ..insult_service.model import InsultService
+from ..insult_filter.model import InsultFilter
 
 
 # Implementación simple de callback para pruebas

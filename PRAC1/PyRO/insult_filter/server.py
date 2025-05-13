@@ -1,6 +1,6 @@
 import Pyro4
 import Pyro4.errors
-from PRAC1.PyRO.insult_filter.model import InsultFilter
+from model import InsultFilter
 
 """
     Implementación del servicio de filtrado de insultos usando Pyro4.
