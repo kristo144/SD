@@ -1,83 +1,105 @@
+#!/usr/bin/env python3.13
+
 import pika
-import json
-import time
 import uuid
+import json
 
-# Lista de resultados filtrados
-filtered_texts = []
+# Servicio que filtra insultos en textos usando RPC para obtener la lista de insultos actual.
+class InsultFilterService:
+    def __init__(self, rabbitmq_host='localhost'):
+        # Conexión principal para recibir peticiones de filtrado
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        self.channel = self.connection.channel()
 
-def get_current_insults():
-    """Obtiene la lista de insultos actual desde InsultService mediante RPC."""
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
+        # Declarar la cola RPC para el servicio de filtrado
+        self.channel.queue_declare(queue='filter_rpc_queue')
 
-    # Crear cola exclusiva para recibir la respuesta
-    result = channel.queue_declare(queue='', exclusive=True)
-    callback_queue = result.method.queue
+        # Configurar calidad de servicio para procesar de a un mensaje por vez
+        self.channel.basic_qos(prefetch_count=1)
+        # Iniciar consumo con la función de callback para procesar peticiones
+        self.channel.basic_consume(queue='filter_rpc_queue', on_message_callback=self.on_request)
 
-    corr_id = str(uuid.uuid4())
-    # Enviar petición de obtención de insultos
-    request = {'action': 'get'}
-    channel.basic_publish(exchange='',
-                          routing_key='insult_rpc_queue',
-                          properties=pika.BasicProperties(
-                              reply_to=callback_queue,
-                              correlation_id=corr_id
-                          ),
-                          body=json.dumps(request).encode('utf-8'))
+        # Conexión secundaria para consultar el servicio InsultService (RPC)
+        self.insult_connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
+        self.insult_channel = self.insult_connection.channel()
+        # Cola de respuesta exclusiva para recibir la lista de insultos
+        result = self.insult_channel.queue_declare(queue='', exclusive=True)
+        self.callback_queue = result.method.queue
+        self.insult_channel.basic_consume(
+            queue=self.callback_queue,
+            on_message_callback=self.on_insult_response,
+            auto_ack=True
+        )
+        # Variables para la respuesta del servicio InsultService
+        self.insult_response = None
+        self.insult_corr_id = None
 
-    insults = []
-    while True:
-        method_frame, props, body = channel.basic_get(queue=callback_queue, auto_ack=True)
-        if method_frame and props.correlation_id == corr_id:
-            response = json.loads(body.decode('utf-8'))
-            insults = response.get('insults', [])
-            break
-        time.sleep(0.01)
-    connection.close()
-    return insults
+    def on_insult_response(self, ch, method, props, body):
+        # Callback para recibir la lista de insultos desde InsultService
+        if self.insult_corr_id == props.correlation_id:
+            # Decodificar la lista de insultos (se espera JSON)
+            try:
+                insults = json.loads(body.decode())
+            except Exception:
+                insults = []
+            self.insult_response = insults
 
-def process_text(ch, method, props, body):
-    """Callback para procesar textos: filtra insultos y guarda el resultado."""
-    texto = body.decode('utf-8')
-    print(f"[InsultFilter] Texto recibido para filtrar: {texto}")
-    insults = get_current_insults()
-    texto_filtrado = texto
-    for insult in insults:
-        texto_filtrado = texto_filtrado.replace(insult, "CENSORED")
-    filtered_texts.append(texto_filtrado)
-    print(f"[InsultFilter] Texto filtrado: {texto_filtrado}")
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    def get_insults(self):
+        # Invocar de forma síncrona al servicio InsultService vía RPC y obtener lista de insultos
+        self.insult_response = None
+        self.insult_corr_id = str(uuid.uuid4())
+        # Publicar petición en la cola 'insult_rpc_queue'
+        self.insult_channel.basic_publish(
+            exchange='',
+            routing_key='insult_rpc_queue',
+            properties=pika.BasicProperties(
+                reply_to=self.callback_queue,
+                correlation_id=self.insult_corr_id
+            ),
+            body=''  # Cuerpo vacío (la petición de la lista de insultos)
+        )
+        # Esperar la respuesta del servicio InsultService
+        while self.insult_response is None:
+            self.insult_connection.process_data_events(time_limit=None)
+        return self.insult_response
 
-def on_request(ch, method, props, body):
-    """Callback para responder a las consultas de resultados filtrados."""
-    mensaje = json.loads(body.decode('utf-8'))
-    accion = mensaje.get('action')
-    if accion == 'get':
-        respuesta = json.dumps({'status': 'OK', 'filtered': filtered_texts})
-    else:
-        respuesta = json.dumps({'status': 'ERROR', 'message': 'Acción desconocida.'})
-    ch.basic_publish(exchange='',
-                     routing_key=props.reply_to,
-                     properties=pika.BasicProperties(correlation_id = props.correlation_id),
-                     body=respuesta.encode('utf-8'))
-    ch.basic_ack(delivery_tag = method.delivery_tag)
+    def on_request(self, ch, method, props, body):
+        # Callback para procesar peticiones de filtrado de insultos
+        texto = body.decode()  # Texto recibido en la petición
+        print(f"Recibido texto a filtrar: {texto}")
 
-def main():
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
+        # Obtener lista actual de insultos desde el servicio InsultService
+        insults = self.get_insults()
+        print(f"Lista de insultos recibida: {insults}")
 
-    # Cola para recibir textos a filtrar (work queue)
-    channel.queue_declare(queue='filter_queue')
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='filter_queue', on_message_callback=process_text)
+        # Filtrar cada insulto en el texto
+        texto_filtrado = texto
+        for insulto in insults:
+            # Reemplazar cada insulto por 'CENSORED' (se asume coincidencia exacta)
+            texto_filtrado = texto_filtrado.replace(insulto, "CENSORED")
 
-    # Cola para consultas RPC de resultados
-    channel.queue_declare(queue='filter_rpc_queue')
-    channel.basic_consume(queue='filter_rpc_queue', on_message_callback=on_request)
+        # Publicar la respuesta en la cola indicada por 'reply_to'
+        response = texto_filtrado
+        ch.basic_publish(
+            exchange='',
+            routing_key=props.reply_to,
+            properties=pika.BasicProperties(correlation_id=props.correlation_id),
+            body=response.encode()
+        )
+        # Confirmar que se procesó el mensaje original
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        print(f"Texto filtrado enviado: {texto_filtrado}")
 
-    print("[InsultFilter] Esperando mensajes. CTRL+C para salir.")
-    channel.start_consuming()
+    def start(self):
+        print(" [x] Servicio de filtrado de insultos escuchando en 'filter_rpc_queue'")
+        try:
+            self.channel.start_consuming()
+        except KeyboardInterrupt:
+            print(" [!] Interrumpido por el usuario")
+            self.channel.stop_consuming()
+            self.connection.close()
+            self.insult_connection.close()
 
 if __name__ == '__main__':
-    main()
+    service = InsultFilterService()
+    service.start()
