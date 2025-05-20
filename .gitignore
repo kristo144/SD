@@ -9,6 +9,8 @@ PRAC1/PyRO/__pycache__/
 PRAC1/PyRO/insult_filter/__pycache__/
 PRAC1/PyRO/insult_service/__pycache__/
 PRAC1/PyRO/tests/__pycache__/
+PRAC1/PyRO/*.png
 
 PRAC1/RabbitMQ/tests/*.png
 PRAC1/RabbitMQ/tests/*.csv
+PRAC1/RabbitMQ/clients/__pycache__/
