@@ -24,8 +24,8 @@ from clients.get_results_client import get_filtered_results
   # RPC filtrado
 
 # CONFIGURACIÓN
-N_REQUESTS = 200        # nº total de peticiones
-CONCURRENCY = 20        # nº de hilos simultáneos
+N_REQUESTS = 1000        # nº total de peticiones
+CONCURRENCY = 10       # nº de hilos simultáneos
 SAMPLE_INSULT = "tonto" # insulto de prueba
 SAMPLE_TEXT = "Esto es un insulto: tonto y bruto."  # texto para filtrar
 
@@ -83,7 +83,7 @@ def run_test(worker_fn, label):
     t_end = time.perf_counter()
     total_time = sum(latencies)
     avg_latency = total_time / len(latencies)
-    throughput = len(latencies) / (t_end - t_start)
+    throughput = """len(latencies""" N_REQUESTS/ (t_end - t_start)
 
     print(f"Tiempo total prueba: {t_end - t_start:.3f} s")
     print(f"Throughput ≈ {throughput:.2f} req/s")

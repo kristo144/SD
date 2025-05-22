@@ -36,7 +36,7 @@ def on_request(ch, method, props, body):
         else:
             mensaje = {'action': 'get'}
     except json.JSONDecodeError:
-        # Cuerpo no es JSON: tratamos como petición 'get'
+        # Cuerpo no es JSON: se trata como petición 'get'
         mensaje = {'action': 'get'}
 
     accion = mensaje.get('action')
@@ -56,10 +56,10 @@ def on_request(ch, method, props, body):
 
     elif accion == 'get':
         respuesta = {'status': 'OK', 'insultos': insultos}
-        print(f"[InsultService] Lista de insultos enviada: {insultos}")
+        print(f"[InsultService] Lista de insultos actuales guardados: {insultos}")
 
     else:
-        respuesta = {'status': 'ERROR', 'message': 'Acción desconocida.'}
+        respuesta = {'status': 'ERROR', 'message': 'Acción desconocida.'}   # por si aka
 
     # Responder al cliente usando reply_to y correlation_id
     ch.basic_publish(
