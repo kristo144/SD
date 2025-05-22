@@ -20,6 +20,7 @@ def filter_text(text):
     filtered_texts.append(filtered)
     print(f"Texto recibido: {text}")
     print(f"Texto filtrado: {filtered}")
+    print() # salto de línea pa diferenciar
 
 def on_request(ch, method, props, body):
     """
@@ -55,14 +56,21 @@ def start_server():
     """
     Inicializa el servidor, conecta a RabbitMQ y escucha la cola 'filter_queue'.
     """
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
-    channel.queue_declare(queue='filter_queue')
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='filter_queue', on_message_callback=on_request)
+    try:
+        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        channel = connection.channel()
+        channel.queue_declare(queue='filter_queue')
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue='filter_queue', on_message_callback=on_request)
 
-    print(" [x] FilterService esperando peticiones en 'filter_queue'.")
-    channel.start_consuming()
+        print(" [x] FilterService esperando peticiones en 'filter_queue'...")
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        channel.stop_consuming()
+    finally:
+        if not connection.is_closed:
+            connection.close()
+        print(" [*] Connection closed.")
 
 if __name__ == "__main__":
     start_server()

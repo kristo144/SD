@@ -47,13 +47,21 @@ def on_request(ch, method, props, body):
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def start_server():
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    channel = connection.channel()
-    channel.queue_declare(queue='insult_queue') # declaración de la cola de la parte de InsultService
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='insult_queue', on_message_callback=on_request)
-    print(" [x] InsultService esperando peticiones.")
-    channel.start_consuming()
+    try:
+        connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        channel = connection.channel()
+        channel.queue_declare(queue='insult_queue') # declaración de la cola de la parte de InsultService
+        channel.basic_qos(prefetch_count=1)
+        channel.basic_consume(queue='insult_queue', on_message_callback=on_request)
+
+        print(" [x] InsultService esperando peticiones en 'insult_queue'...")
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        channel.stop_consuming()
+    finally:
+        if not connection.is_closed:
+            connection.close()
+        print(" [*] Connection closed.")
 
 if __name__ == "__main__":
     # Iniciar el broadcaster en un hilo separado
