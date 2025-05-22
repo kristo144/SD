@@ -7,16 +7,21 @@ from xmlrpc.client import ServerProxy
 from threading import Thread
 from time import sleep
 from random import choice
+from sys import argv
 
 class InsultRequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
 
+port = 8080
+if len(argv)>1:
+    port = int(argv[1])
+
 with SimpleXMLRPCServer(
-     ('localhost', 8080),
+     ('localhost', port),
      requestHandler=InsultRequestHandler) as server:
     server.register_introspection_functions()
 
-    insults = { "tonto", "lerdo", "desagradable" }#set()
+    insults = { "tonto", "lerdo", "desagradable" }
     observers = set()
 
     def add_insult(new_insult: str):

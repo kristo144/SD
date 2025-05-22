@@ -20,7 +20,7 @@ def add_text(new_text: str):
     for insult in insults:
         new_text = new_text.replace(insult, "CENSORED")
     texts.add(new_text)
-    return "Accepted"
+    return new_text
 
 def get_texts():
     return list(texts)
