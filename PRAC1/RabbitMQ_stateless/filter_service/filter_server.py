@@ -40,16 +40,10 @@ def on_request(ch, method, props, body):
     else:
         response = "Comando no reconocido."
 
-    if props.reply_to:
-        ch.basic_publish(
-            exchange='',
-            routing_key=str(props.reply_to),
-            properties=pika.BasicProperties(correlation_id=props.correlation_id),
-            body=response
-        )
-    else:
-        print("Error: 'reply_to' not defined or NONE")
-
+    ch.basic_publish(
+        exchange='', routing_key=props.reply_to,
+        properties=pika.BasicProperties(correlation_id=props.correlation_id),
+        body=response)
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def start_server():
