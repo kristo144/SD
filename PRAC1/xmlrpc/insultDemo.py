@@ -4,16 +4,18 @@ from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
 from xmlrpc.client import ServerProxy
 
-from sys import argv
-from subprocess import Popen
+from sys import argv, exit
 from time import sleep
+from insultService import insultService
+from threading import Thread
 
 server = ServerProxy('http://localhost:8080')
 
 print("Demo script for insultService")
 print("Starting insultService...")
-process = Popen("./insultService.py")
-
+service_thread = Thread(target=insultService().serve)
+service_thread.daemon = True
+service_thread.start()
 sleep(2)
 
 print("\n----\n")
@@ -43,13 +45,10 @@ def notify(msg: str):
     print(msg)
     return True
 
-try:
-    client = SimpleXMLRPCServer(('localhost', 0), requestHandler = Observer)
-    client.register_introspection_functions()
-    client.register_function(notify)
-    addr = client.server_address
-    url = 'http://' + addr[0] + ':' + str(addr[1])
-    server.subscribe(url)
-    client.serve_forever()
-except KeyboardInterrupt:
-    process.kill()
+client = SimpleXMLRPCServer(('localhost', 0), requestHandler = Observer)
+client.register_introspection_functions()
+client.register_function(notify)
+addr = client.server_address
+url = 'http://' + addr[0] + ':' + str(addr[1])
+server.subscribe(url)
+client.serve_forever()

@@ -12,55 +12,56 @@ from sys import argv
 class InsultRequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
 
-port = 8080
-if len(argv)>1:
-    port = int(argv[1])
-
-with SimpleXMLRPCServer(
-     ('localhost', port),
-     requestHandler=InsultRequestHandler) as server:
-    server.register_introspection_functions()
-
-    insults = { "tonto", "lerdo", "desagradable" }
-    observers = set()
-
-    def add_insult(new_insult: str):
-        insults.add(new_insult)
+class insultService:
+    def add_insult(self, new_insult: str):
+        self.insults.add(new_insult)
         return "Accepted"
 
-    def get_insults():
-        return list(insults)
+    def get_insults(self):
+        return list(self.insults)
 
-    def insult_me():
-        return choice(list(insults))
+    def insult_me(self):
+        return choice(list(self.insults))
 
-    def serve():
-        server.serve_forever()
-
-    def subscribe(url: str):
+    def subscribe(self, url: str):
         observer = ServerProxy(url)
-        observers.add(observer)
+        self.observers.add(observer)
         return True
 
-    def publish():
-        global observers
-        _ins = list(insults)
-        removed = set()
-        for observer in observers:
-            insult = choice(_ins)
-            try:
-                observer.notify(insult)
-            except:
-                removed.add(observer)
-        observers = observers - removed
+    def publish(self):
+        while True:
+            _ins = list(self.insults)
+            removed = set()
+            for observer in self.observers:
+                insult = choice(_ins)
+                try:
+                    observer.notify(insult)
+                except:
+                    removed.add(observer)
+            self.observers.difference_update(removed)
+            sleep(5)
 
-    for func in [add_insult, get_insults, insult_me, subscribe]:
-        server.register_function(func)
+    def serve(self, port=8080):
+        server = SimpleXMLRPCServer(('localhost', port), requestHandler=InsultRequestHandler)
+        server.register_introspection_functions()
+        for func in [
+                self.add_insult,
+                self.get_insults,
+                self.insult_me,
+                self.subscribe
+                ]:
+            server.register_function(func)
 
-    thread = Thread(target = serve)
-    thread.start()
+        self.insults = { "tonto", "lerdo", "desagradable" }
+        self.observers = set()
 
-    i = 0
-    while True:
-        publish()
-        sleep(5)
+        thread = Thread(target=self.publish)
+        thread.daemon = True
+        thread.start()
+        server.serve_forever()
+
+if __name__ == "__main__":
+    if len(argv) > 1:
+        insultService().serve(argv[1])
+    else:
+        insultService().serve()
