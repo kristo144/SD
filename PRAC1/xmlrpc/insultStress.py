@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 
 from xmlrpc.client import ServerProxy
-from subprocess import Popen, DEVNULL
-from multiprocessing import Pool
+#from subprocess import Popen, DEVNULL
+from multiprocessing import Pool, Process
 from itertools import cycle, repeat
 from functools import partial
 from time import time, sleep
 from sys import argv
 from os import process_cpu_count
 
+from insultService import insultService
+
 procs = []
-procs.append(Popen(["nice", "--10", "./insultService.py", "8080"], stderr=DEVNULL))
-procs.append(Popen(["nice", "--10", "./insultService.py", "8081"], stderr=DEVNULL))
-procs.append(Popen(["nice", "--10", "./insultService.py", "8082"], stderr=DEVNULL))
+servers = []
+for i in range(3):
+    p = Process(target=insultService().serve, args=(8080 + i,))
+    procs.append(p)
+    p.start()
+    servers.append(ServerProxy(f"http://localhost:{8080+i}"))
 
 sleep(2)
-
-servers = [
-    ServerProxy('http://localhost:8080'),
-    ServerProxy('http://localhost:8081'),
-    ServerProxy('http://localhost:8082'),
-]
 
 num_reqs = 10_000
 if len(argv) > 1:

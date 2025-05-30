@@ -42,7 +42,7 @@ class insultService:
             sleep(5)
 
     def serve(self, port=8080):
-        server = SimpleXMLRPCServer(('localhost', port), requestHandler=InsultRequestHandler)
+        server = SimpleXMLRPCServer(('localhost', port), requestHandler=InsultRequestHandler, logRequests=False)
         server.register_introspection_functions()
         for func in [
                 self.add_insult,

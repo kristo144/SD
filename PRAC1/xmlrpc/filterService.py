@@ -22,7 +22,7 @@ class filterService:
         return list(self.texts)
 
     def serve(self, port=8090, insult_port=8080):
-        server = SimpleXMLRPCServer(('localhost', port), requestHandler=InsultRequestHandler)
+        server = SimpleXMLRPCServer(('localhost', port), requestHandler=InsultRequestHandler, logRequests=False)
         server.register_introspection_functions()
         self.proxy = ServerProxy(f"http://localhost:{insult_port}")
         self.texts = set()
