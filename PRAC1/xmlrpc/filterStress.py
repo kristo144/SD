@@ -9,16 +9,20 @@ from sys import argv
 from os import process_cpu_count
 
 from insultService import insultService
+from filterService import filterService
 
-procs = []
+procs = [ Process(target=insultService().serve) ]
+procs[0].start()
+sleep(1)
+
 servers = []
 for i in range(3):
-    p = Process(target=insultService().serve, args=(8080 + i,))
+    p = Process(target=filterService().serve, args=(8090 + i,))
     procs.append(p)
     p.start()
-    servers.append(ServerProxy(f"http://localhost:{8080+i}"))
+    servers.append(ServerProxy(f"http://localhost:{8090+i}"))
 
-sleep(2)
+sleep(1)
 
 num_reqs = 10_000
 if len(argv) > 1:
@@ -30,7 +34,7 @@ average_time = dict()
 def worker(nodes):
     nodes = cycle(servers[:nodes])
     for j in range(num_reqs):
-        next(nodes).insult_me()
+        next(nodes).add_text("eres tonto")
 
 pool = Pool(num_workers)
 for num_nodes in [1, 2, 3]:

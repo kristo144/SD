@@ -12,8 +12,7 @@ class InsultRequestHandler(SimpleXMLRPCRequestHandler):
 
 class filterService:
     def add_text(self, new_text: str):
-        insults = self.proxy.get_insults()
-        for insult in insults:
+        for insult in self.insults:
             new_text = new_text.replace(insult, "CENSORED")
         self.texts.add(new_text)
         return new_text
@@ -25,6 +24,7 @@ class filterService:
         server = SimpleXMLRPCServer(('localhost', port), requestHandler=InsultRequestHandler, logRequests=False)
         server.register_introspection_functions()
         self.proxy = ServerProxy(f"http://localhost:{insult_port}")
+        self.insults = self.proxy.get_insults()
         self.texts = set()
         for func in [self.add_text, self.get_texts]:
             server.register_function(func)
