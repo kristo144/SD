@@ -8,13 +8,14 @@ MESSAGES   = 1500
 def launch_servers(n):
     procs = []
     for i in range(n):
-        p = subprocess.Popen(
-            ["python3.13", "filter_service/filter_server.py"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
+        p = subprocess.Popen([
+            "gnome-terminal", "--",
+            "bash", "-c",
+            "python3.13 ../filter_service/filter_server.py"
+        ])
         procs.append(p)
     # darles un momento para arrancar
-    time.sleep(1)
+    time.sleep(0.5)
     return procs
 
 def kill_servers(procs):
@@ -47,7 +48,7 @@ def main():
 
     for n in args.nodes:
         print(f"\n>>> Probando con {n} nodo(s)...")
-        procs = launch_servers(n)
+        procs = launch_servers(1)
 
         start = time.time()
         run_test(args.clients, args.messages)

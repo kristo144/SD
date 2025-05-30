@@ -1,130 +1,119 @@
 import Pyro4
 import Pyro4.errors
-import sys
+import threading
 import uuid
-
+import itertools
+import sys
 
 @Pyro4.expose
 class InsultCallback:
-    """
-    Callback para recibir notificaciones de insultos aleatorios
-    """
-
+    """Callback para recibir insultos aleatorios."""
     def notify(self, insult):
         print(f"\n[RANDOM INSULT]: {insult}")
         return True
 
+def discover_services(ns, base_name="insult.service", max_nodes=3):
+    """Consulta al NameServer y devuelve lista de proxies disponibles."""
+    proxies = []
+    for suffix in list("ABC")[:max_nodes]:
+        fullname = f"{base_name}.{suffix}"
+        try:
+            uri = ns.lookup(fullname)
+            proxies.append((fullname, Pyro4.Proxy(uri)))
+            print(f"[+] Nodo encontrado: {fullname} -> {uri}")
+        except Pyro4.errors.NamingError:
+            # no registrado, lo ignoramos
+            pass
+    if not proxies:
+        print("[-] No se encontraron nodos de insult.service.*. Saliendo...")
+        sys.exit(1)
+    return proxies
 
 def main():
-    try:
-        # Conectar con el servicio de insultos
-        insult_service = Pyro4.Proxy("PYRONAME:insult.service")
+    # Conectarse al NameServer
+    ns = Pyro4.locateNS()
+    # Descubrir hasta 3 nodos (A, B, C)
+    nodes = discover_services(ns)
+    # Iterator para round-robin
+    rr = itertools.cycle(nodes)
 
-        # Crear un callback para recibir notificaciones
-        callback = InsultCallback()
-        daemon = Pyro4.Daemon()
-        callback_uri = daemon.register(callback)
+    # Preparar callback y daemon para recibir notificaciones
+    callback = InsultCallback()
+    daemon = Pyro4.Daemon()
+    cb_uri = daemon.register(callback)
+    client_id = str(uuid.uuid4())
 
-        # Generar un ID único para este cliente
-        client_id = str(uuid.uuid4())
+    # Thread de Pyro para callbacks
+    t = threading.Thread(target=daemon.requestLoop)
+    t.daemon = True
+    t.start()
 
-        # Flag para mantener la ejecución del programa
-        running = True
+    subscribed = False
 
-        # Flag para controlar la suscripción
-        subscribed = False
+    while True:
+        print("\n=== Cliente InsultService ===")
+        print("1) Añadir insulto")
+        print("2) Ver insultos")
+        print("3) InsultMe")
+        print("4) Suscribirse a todos")
+        print("5) Cancelar suscripción a todos")
+        print("6) Salir...")
+        opt = input("Elige (1-6): ").strip()
 
-        print("Cliente del Servicio de Insultos (Pyro4)")
-        print("---------------------------------------")
+        if opt == "1":
+            _, proxy = next(rr)
+            insult = input("Insulto a añadir: ").strip()
+            ok = proxy.add_insult(insult)
+            print("OK" if ok else "Ya existe o no valid")
 
-        while running:
-            print("\nOpciones:")
-            print("1. Añadir insulto")
-            print("2. Ver todos los insultos")
-            print("3. Suscribirse a notificaciones")
-            print("4. Cancelar suscripción")
-            print("5. Ver suscriptores activos")
-            print("6. Salir")
+        elif opt == "2":
+            _, proxy = next(rr)
+            lst = proxy.get_insults()
+            print("\n-- Insult List --")
+            for i, ins in enumerate(lst, 1):
+                print(f"{i}. {ins}")
 
-            choice = input("\nSelecciona una opción (1-6): ")
-
-            if choice == "1":
-                insult = input("Introduce el insulto a añadir: ")
-                if insult_service.add_insult(insult):
-                    print(f"Insulto '{insult}' añadido correctamente")
-                else:
-                    print(f"El insulto '{insult}' ya existe o es inválido")
-
-            elif choice == "2":
-                insults = insult_service.get_insults()
-                if insults:
-                    print("\nLista de insultos:")
-                    for idx, insult in enumerate(insults, 1):
-                        print(f"{idx}. {insult}")
-                else:
-                    print("No hay insultos almacenados")
-
-            elif choice == "3":
-                if subscribed:
-                    print("Ya estás suscrito a las notificaciones")
-                else:
-                    # Suscribirse para recibir notificaciones
-                    if insult_service.subscribe(client_id, callback):
-                        subscribed = True
-                        print("Te has suscrito a las notificaciones de insultos aleatorios")
-                        # Iniciar un hilo para procesar callbacks
-                        import threading
-                        daemon_thread = threading.Thread(target=daemon.requestLoop)
-                        daemon_thread.daemon = True
-                        daemon_thread.start()
-                    else:
-                        print("Error al suscribirse")
-
-            elif choice == "4":
-                if not subscribed:
-                    print("No estás suscrito a las notificaciones")
-                else:
-                    # Cancelar la suscripción
-                    if insult_service.unsubscribe(client_id):
-                        subscribed = False
-                        print("Has cancelado tu suscripción")
-                    else:
-                        print("Error al cancelar la suscripción")
-
-            elif choice == "5":
-                # Ver suscriptores activos
-                subscribers = insult_service.get_subscribers()
-                if subscribers:
-                    print("\nSuscriptores activos:")
-                    for idx, subscriber_id in enumerate(subscribers, 1):
-                        status = "TÚ" if subscriber_id == client_id else ""
-                        print(f"{idx}. {subscriber_id} {status}")
-                else:
-                    print("No hay suscriptores activos")
-
-            elif choice == "6":
-                # Cancelar suscripción si existe antes de salir
-                if subscribed:
-                    insult_service.unsubscribe(client_id)
-                running = False
-                print("Saliendo...")
-
-            else:
-                print("Opción no válida, intenta de nuevo")
-
-    except Pyro4.errors.PyroError as e:
-        print(f"Error de Pyro4: {e}")
-        sys.exit(1)
-    except KeyboardInterrupt:
-        print("\nSaliendo...")
-        # Cancelar suscripción si existe antes de salir por Ctrl+C
-        if 'subscribed' in locals() and subscribed and 'insult_service' in locals():
+        elif opt == "3":
+            _, proxy = next(rr)
             try:
-                insult_service.unsubscribe(client_id)
-            except:
-                pass
-        sys.exit(0)
+                insult = proxy.insult_me()
+                if insult:
+                    print(f"\n{insult}")
+                else:
+                    print(f"\nEmpty InsultList")
+            except Pyro4.errors.PyroError as e:
+                print(f"Error al solicitar insult_me: {e}")
 
+        elif opt == "4":
+            if not subscribed:
+                for name, proxy in nodes:
+                    sid = f"{client_id}.{name}"
+                    proxy.subscribe(sid, callback)
+                subscribed = True
+                print("[+] Suscrito a todos los nodos.")
+            else:
+                print("Already subscribed.")
+
+        elif opt == "5":
+            if subscribed:
+                for name, proxy in nodes:
+                    sid = f"{client_id}.{name}"
+                    proxy.unsubscribe(sid)
+                subscribed = False
+                print("[+] Suscripción cancelada en todos.")
+            else:
+                print("Not suscribed yet.")
+
+        elif opt == "6":
+            if subscribed:
+                for name, proxy in nodes:
+                    sid = f"{client_id}.{name}"
+                    proxy.unsubscribe(sid)
+            print("\t**SALIENDO**")
+            break
+
+        else:
+            print("No valid option.")
 
 if __name__ == "__main__":
     main()
