@@ -2,17 +2,26 @@
 
 from xmlrpc.client import ServerProxy
 
-from subprocess import Popen
 from time import sleep
+from threading import Thread
 
-server = ServerProxy('http://localhost:8081')
+from insultService import insultService
+from filterService import filterService
+
+server = ServerProxy('http://localhost:8090')
 
 print("Demo script for filterService")
+
 print("Starting insultService...")
-process = Popen("./insultService.py")
+insult_thread = Thread(target = insultService().serve)
+insult_thread.daemon = True
+insult_thread.start()
 sleep(2)
+
 print("Starting filterService...")
-process2 = Popen("./filterService.py")
+filter_thread = Thread(target = filterService().serve)
+filter_thread.daemon = True
+filter_thread.start()
 sleep(2)
 
 print("\n----\n")
@@ -24,8 +33,3 @@ for text in texts:
 print("\n----\n")
 print("Get list of texts:")
 print(server.get_texts())
-
-
-print("Closing servers:")
-process2.kill()
-process.kill()
